@@ -1,0 +1,10 @@
+*.lisp
+*.fasl
+*.tex
+*.idx
+*.scn
+*.aux
+*.log
+*.toc
+*.dvi
+*.pdf

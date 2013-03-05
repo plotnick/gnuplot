@@ -32,7 +32,7 @@ commands, but not to go much further than that.
   (lambda (stream object)
     (write-string object stream)))
 
-@ Symbols, including keywords, designate their name in lowercase.
+@ Symbols designate their name in lowercase.
 
 @l
 (set-gnuplot-dispatch 'symbol
@@ -91,30 +91,28 @@ symbols designate X11-style options (e.g., \.{-clear}).
 (defmacro with-output-to-gnuplot ((symbol process) &body body)
   `(with-open-stream (,symbol (sb-ext:process-input ,process)) ,@body))
 
-@ Here's the primary interface macro. It takes a list of command-line options
-followed by a sequence of command designators. Lists whose first element
-is |string=| to |:plot| or |:splot| are treated specially; we'll get to the
-specifics in a moment. All other command deisgnators are mechanically
-translated to gnuplot syntax via pretty-printing.
+@ Here's the primary interface function. It takes a list of command-line
+options followed by any number of command designators. Lists whose first
+element is |string=| to |:plot| or |:splot| are treated specially; we'll
+get to the specifics in a moment. All other command deisgnators are
+mechanically translated to gnuplot syntax via pretty-printing.
 
 @l
-(defmacro gnuplot ((&rest options) &body commands)
-  (let ((process (gensym))
-        (command (gensym))
-        (data (gensym)))
-    `(let ((,process (run-gnuplot ',options)))
-       (with-output-to-gnuplot (*standard-output* ,process)
-         (with-gnuplot-syntax
-           (dolist (,command ',commands ,process)
-             (let (,data)
-               (when (and (listp ,command)
-                          (member (car ,command) '(:plot :splot) ;
-                                  :test #'string=))
-                 (multiple-value-setq (,command ,data) ;
-                   (parse-plot-command ,command)))
-               (write ,command)
-               (terpri)
-               (mapc #'write-inline-data ,data))))))))
+(defun gnuplot (options &rest commands)
+  (flet ((plot-command-p (command)
+           (and (listp command)
+                (member (car command) '(:plot :splot) :test #'string=))))
+    (let ((process (run-gnuplot options)))
+      (with-output-to-gnuplot (*standard-output* process)
+        (with-gnuplot-syntax
+            (dolist (command commands process)
+              (let (data)
+                (when (plot-command-p command)
+                  (multiple-value-setq (command data) ;
+                    (parse-plot-command command)))
+                (write command)
+                (terpri)
+                (mapc #'write-inline-data data))))))))
 
 @ Gnuplot's two primary plotting commands commands, \.{plot} and~\.{splot},
 get special treatment. With the exception of a form beginning with the key
@@ -165,8 +163,8 @@ the reconstructed command.
   "plot [0:2*pi] [0:1] sin(x)")
 
 (define-parse-plot-test multi
-  '(:plot ("sin(x)" with points)
-          ("cos(x)" with lines)
+  '(:plot ("sin(x)" :with :points)
+          ("cos(x)" :with :lines)
           #P"foo's data")
   "plot sin(x) with points, cos(x) with lines, 'foo''s data'")
 
@@ -205,11 +203,11 @@ followed by a special `end-of-data' marker line.
 @l
 (deftest plot
   (sb-ext:process-p
-   (gnuplot (:persist)
-     (set key off)
-     (plot (:ranges "0:2*pi")
-           (#(1 2 3) with lines)
-           (#(4 5 6) with lines)
-           "sin(x)")))
+   (gnuplot :persist
+     '(:set :key :off)
+     '(:plot (:ranges "0:2*pi")
+             (#(1 2 3) :with :lines)
+             (#(4 5 6) :with :lines)
+             "sin(x)")))
   t)
 

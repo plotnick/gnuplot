@@ -211,3 +211,33 @@ followed by a special `end-of-data' marker line.
              "sin(x)")))
   t)
 
+@ Here's a little convenience function for plotting a single source
+with some common options.
+
+@l
+(defun ensure-key (key)
+  (case key ((t) :on) ((nil) :off) (t key)))
+
+(defun maybe-ranges (ranges)
+  (if ranges `((:ranges ,@(ensure-list ranges)))))
+
+(defun plot (source &key (options '(:persist)) key (term "x11") ranges ;
+             (with :lines))
+  (gnuplot options
+    `(:set :term ,term)
+    `(:set :key ,(ensure-key key))
+    `(plot ,@(maybe-ranges ranges) (,source :with ,with))))
+
+@ And here's a related one that relies on a bit of Emacs hackery to perform
+its magic; see \.{inline-images.el}.
+
+@l
+(defun plot-inline (source &key options key (term "png") ranges ;
+                    (with :lines) (output-file #P"/tmp/plot.png"))
+  (sb-ext:process-wait
+   (gnuplot options
+     `(:set :term ,term)
+     `(:set :output ,output-file)
+     `(:set :key ,(ensure-key key))
+     `(:plot ,@(maybe-ranges ranges) (,source :with ,with))))
+  (probe-file output-file))

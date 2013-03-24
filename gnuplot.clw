@@ -125,7 +125,7 @@ together with commas to form the complete command.
 We do not attempt a detailed analysis of the clauses, as that would require
 far too much knowledge of the (fairly intricate) syntax of the plot command.
 What we do offer, though, is support for {\it inline data sources}. The idea
-here is that you have (say) a Lisp vector full of data which you'd like to
+here is that you have (say) a Lisp sequence full of data which you'd like to
 plot; rather than writing it out to a file and having gnuplot read it back
 in, we can replace the data source in the command specification with the
 special filename \.{'-'}, which tells gnuplot to read the data from its
@@ -168,14 +168,14 @@ the reconstructed command.
           #P"foo's data")
   "plot sin(x) with points, cos(x) with lines, 'foo''s data'")
 
-@ The only type of inline data source we currently support is non-string
-arrays. We push them onto the |sources| list and substitute the pathname
-\.{'-'}.
+@ The only types of inline data source we currently support are lists and
+non-string arrays. We push them onto the |sources| list and substitute the
+pathname~\.{'-'}.
 
 @<Replace inline...@>=
 (loop for x in clause
       collect (typecase x
-                ((and array (not string)) (push x sources) #P"-")
+                ((or cons (and array (not string))) (push x sources) #P"-")
                 (t x)))
 
 @t@l
@@ -191,7 +191,7 @@ followed by a special `end-of-data' marker line.
 @l
 (defun write-inline-data (data)
   (etypecase data
-    (vector (map nil (lambda (x) (format t "~F~%" x)) data))
+    (sequence (map nil (lambda (x) (format t "~F~%" x)) data))
     ((array * *)
      (dotimes (i (array-dimension data 0))
        (dotimes (j (array-dimension data 1) (terpri))

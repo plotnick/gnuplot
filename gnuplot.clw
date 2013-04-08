@@ -105,14 +105,14 @@ mechanically translated to gnuplot syntax via pretty-printing.
     (let ((process (run-gnuplot options)))
       (with-output-to-gnuplot (*standard-output* process)
         (with-gnuplot-syntax
-            (dolist (command commands process)
-              (let (data)
-                (when (plot-command-p command)
-                  (multiple-value-setq (command data) ;
-                    (parse-plot-command command)))
-                (write command)
-                (terpri)
-                (mapc #'write-inline-data data))))))))
+          (dolist (command commands process)
+            (let (data)
+              (when (plot-command-p command)
+                (multiple-value-setq (command data) ;
+                  (parse-plot-command command)))
+              (write command)
+              (terpri)
+              (mapc #'write-inline-data data))))))))
 
 @ Gnuplot's two primary plotting commands commands, \.{plot} and~\.{splot},
 get special treatment. With the exception of a form beginning with the key

@@ -97,6 +97,10 @@ element is |string=| to |:plot| or |:splot| are treated specially; we'll
 get to the specifics in a moment. All other command deisgnators are
 mechanically translated to gnuplot syntax via pretty-printing.
 
+Even though this is a function, I usually indent it like it's a macro whose
+|cddr| is a body. You can tell GNU~Emacs to do this automatically like so:
+|(put 'gnuplot 'lisp-indent-function 1)|.
+
 @l
 (defun gnuplot (options &rest commands)
   (flet ((plot-command-p (command)

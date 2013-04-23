@@ -215,33 +215,36 @@ followed by a special `end-of-data' marker line.
              "sin(x)")))
   t)
 
-@ Here's a little convenience function for plotting a single source
-with some common options.
+@ Here's a little convenience function for plotting a (designator for a)
+list of sources with some common options.
 
 @l
 (defun ensure-key (key)
   (case key ((t) :on) ((nil) :off) (t key)))
 
 (defun maybe-ranges (ranges)
-  (if ranges `((:ranges ,@(ensure-list ranges)))))
+  (when ranges `((:ranges ,@(ensure-list ranges)))))
 
-(defun plot (source &key (options '(:persist)) key (term "x11") ranges ;
-             (with :lines))
+(defun plot (sources &key (options '(:persist)) key (terminal "x11") ranges ;
+             output-file (with :lines) &allow-other-keys)
   (gnuplot options
-    `(:set :term ,term)
+    `(:set :terminal ,terminal)
+    `(:set :output ,@(when output-file `(,output-file)))
     `(:set :key ,(ensure-key key))
-    `(plot ,@(maybe-ranges ranges) (,source :with ,with))))
+    `(plot ,@(maybe-ranges ranges)
+           ,@(loop for source in (ensure-list sources)
+                   collect `(,source :with ,with)))))
 
 @ And here's a related one that relies on a bit of Emacs hackery to perform
 its magic; see \.{inline-images.el}.
 
 @l
-(defun plot-inline (source &key options key (term "png") ranges ;
-                    (with :lines) (output-file #P"/tmp/plot.png"))
+(defun plot-inline (sources &rest args &key options (terminal "png") 
+                    (output-file #P"/tmp/plot.png") &allow-other-keys)
   (sb-ext:process-wait
-   (gnuplot options
-     `(:set :term ,term)
-     `(:set :output ,output-file)
-     `(:set :key ,(ensure-key key))
-     `(:plot ,@(maybe-ranges ranges) (,source :with ,with))))
+   (apply #'plot sources
+          :options options
+          :terminal terminal
+          :output-file output-file
+          args))
   (probe-file output-file))

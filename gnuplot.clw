@@ -232,8 +232,17 @@ list of sources with some common options.
     `(:set :output ,@(when output-file `(,output-file)))
     `(:set :key ,(ensure-key key))
     `(plot ,@(maybe-ranges ranges)
-           ,@(loop for source in (ensure-list sources)
+           ,@(loop for source in @<Make sources out of |sources|@>
                    collect `(,source :with ,with)))))
+
+@ Arrays and lists of numbers are taken as designators for source lists
+containing only themselves.
+
+@<Make sources...@>=
+(cond ((or (arrayp sources) (and (consp sources) (every #'numberp sources)))
+       (list sources))
+      ((consp sources) sources)
+      (t (error "Don't know how to plot ~A." sources)))
 
 @ And here's a related one that relies on a bit of Emacs hackery to perform
 its magic; see \.{inline-images.el}.

@@ -1,3 +1,18 @@
+@*Gnuplot. This is a simple Lisp wrapper for gnuplot.
+
+@ We begin with a package definition. Only the tests require |rt|.
+
+@l
+@e
+(defpackage "GNUPLOT"
+  (:documentation "A simple Lisp interface to gnuplot.")
+  (:use "COMMON-LISP" #+sbcl "SB-RT")
+  (:export "*GNUPLOT*"
+           "RUN-GNUPLOT" "WITH-OUTPUT-TO-GNUPLOT" "GNUPLOT"
+           "PLOT" "PLOT-INLINE"))
+@e
+(in-package "GNUPLOT")
+
 @ This little utility function is primarily used to resolve list designators.
 
 @l
@@ -257,3 +272,6 @@ its magic; see \.{inline-images.el}.
           :output-file output-file
           args))
   (probe-file output-file))
+
+@*Index.
+@t*Index.

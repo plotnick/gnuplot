@@ -65,7 +65,7 @@ constituents. E.g., using the symbol dispatching we just defined, in a
     (format stream "~{~W~^ ~}" object)))
 
 @ We'll write pathnames using gnuplot's single-quote syntax, which requires
-that embedded single-quote characters by escaped by doubling them.
+that embedded single-quote characters be escaped by doubling them.
 
 @l
 (defun escape (string chars &optional (escape #\\)

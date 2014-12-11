@@ -9,7 +9,7 @@
   (:use "COMMON-LISP" #+sbcl "SB-RT")
   (:export "*GNUPLOT*"
            "RUN-GNUPLOT" "WITH-OUTPUT-TO-GNUPLOT" "GNUPLOT"
-           "PLOT" "PLOT-INLINE"))
+           "PLOT" "PLOT-INLINE" "PLOT-HISTOGRAM"))
 @e
 (in-package "GNUPLOT")
 
@@ -220,6 +220,7 @@ followed by a special `end-of-data' marker line.
 @t A simple test of the whole shebang.
 
 @l
+#+(or)
 (deftest plot
   (sb-ext:process-p
    (gnuplot :persist
@@ -241,11 +242,12 @@ list of sources with some common options.
   (when ranges `((:ranges ,@(ensure-list ranges)))))
 
 (defun plot (sources &key (options '(:persist)) key (terminal "x11") ranges ;
-             output-file (with :lines) &allow-other-keys)
+             output-file title (with :lines) &allow-other-keys)
   (gnuplot options
     `(:set :terminal ,terminal)
-    `(:set :output ,@(when output-file `(,output-file)))
+    `(:set :output ,@(and output-file `(,output-file)))
     `(:set :key ,(ensure-key key))
+    `(:set :title ,@(and title `(,title)))
     `(plot ,@(maybe-ranges ranges)
            ,@(loop for source in @<Make sources out of |sources|@>
                    collect `(,source :with ,with)))))
@@ -272,6 +274,46 @@ its magic; see \.{inline-images.el}.
           :output-file output-file
           args))
   (probe-file output-file))
+
+@ Gnuplot can draw histograms, but is clumsy at binning---we're better
+off doing it in Lisp. We support only constant-width bins for now.
+
+@l
+(defun histogram (data &key (bins (ceiling (sqrt (length data))))
+                  (min (reduce #'min data))
+                  (max (reduce #'max data)) &aux
+                  (width (/ (- max min) (1- bins)))
+                  (histogram @<Make a histogram array@>))
+  @<Fill the first histogram column@>
+  @<Fill the second histogram column@>
+  histogram)
+
+(defun plot-histogram (data &rest args &key (options '(:persist)) key ranges ;
+                       title (with :boxes) &allow-other-keys)
+  (let ((histogram (apply #'histogram data :allow-other-keys t args)))
+    (gnuplot options
+      `(:set :style :histogram)
+      `(:set :style :fill :solid 0.5 :border :lt -1)
+      `(:set :key ,(ensure-key key))
+      `(:set :title ,@(and title `(,title)))
+      `(plot ,@(maybe-ranges ranges) (,histogram :with ,with)))))
+
+@ We represent histograms as two-dimensional arrays, with a row for each bin.
+
+@<Make a histogram array@>=
+(make-array (list bins 2) :initial-element 0)
+
+@ The first column contains the coordinates of the left-hand bin edges.
+
+@<Fill the first histogram column@>=
+(loop for bin below bins
+      as edge = min then (+ edge width)
+      do (setf (aref histogram bin 0) edge))
+
+@ And the second column contains the bin counts.
+
+@<Fill the second histogram column@>=
+(map nil (lambda (x) (incf (aref histogram (floor (- x min) width) 1))) data)
 
 @*Index.
 @t*Index.

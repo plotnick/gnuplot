@@ -1,17 +1,22 @@
 @*Gnuplot. This is a simple Lisp wrapper for gnuplot.
 
-@ We begin with a package definition. Only the tests require |rt|.
+@ We begin with a package definition. We use a few SBCL-only packages:
+|sb-ext| gives us process control, and |sb-rt| is Richard Waters's
+regression testing library. Porting to other Common Lisp implementations
+should be straightforward, but has not been attempted.
 
 @l
 @e
 (defpackage "GNUPLOT"
   (:documentation "A simple Lisp interface to gnuplot.")
-  (:use "COMMON-LISP" #+sbcl "SB-RT")
+  (:use "COMMON-LISP" "SB-EXT" "SB-RT")
   (:export "*GNUPLOT*"
            "RUN-GNUPLOT" "WITH-OUTPUT-TO-GNUPLOT" "GNUPLOT"
            "PLOT" "PLOT-INLINE" "PLOT-HISTOGRAM"))
 @e
 (in-package "GNUPLOT")
+@e
+(provide 'gnuplot)
 
 @ This little utility function is primarily used to resolve list designators.
 
@@ -97,14 +102,14 @@ symbols designate X11-style options (e.g., \.{-clear}).
 
 (defun run-gnuplot (options &rest args &key ;
                     (search t) (wait nil) (input :stream) (output t) (error t))
-  (apply #'sb-ext:run-program
+  (apply #'run-program
          *gnuplot-program*
          (mapcar #'stringify-arg (ensure-list options))
          :search search :wait wait :input input :output output :error error
          args))
 
 (defmacro with-output-to-gnuplot ((symbol process) &body body)
-  `(with-open-stream (,symbol (sb-ext:process-input ,process)) ,@body))
+  `(with-open-stream (,symbol (process-input ,process)) ,@body))
 
 @ Here's the primary interface function. It takes a list of command-line
 options followed by any number of command designators. Lists whose first
@@ -220,16 +225,16 @@ followed by a special `end-of-data' marker line.
 @t A simple test of the whole shebang.
 
 @l
-#+(or)
 (deftest plot
-  (sb-ext:process-p
-   (gnuplot :persist
-     '(:set :key :off)
-     '(:plot (:ranges "0:2*pi")
-             (#(1 2 3) :with :lines)
-             (#(4 5 6) :with :lines)
-             "sin(x)")))
-  t)
+  (process-alive-p
+   (process-wait
+    (gnuplot '(#+(or) :persist)
+      '(:set :key :off)
+      '(:plot (:ranges "0:2*pi")
+        (#(1 2 3) :with :lines)
+        (#(4 5 6) :with :lines)
+        "sin(x)"))))
+  nil)
 
 @ Here's a little convenience function for plotting a (designator for a)
 list of sources with some common options.
@@ -267,7 +272,7 @@ its magic; see \.{inline-images.el}.
 @l
 (defun plot-inline (sources &rest args &key options (terminal "png") 
                     (output-file #P"/tmp/plot.png") &allow-other-keys)
-  (sb-ext:process-wait
+  (process-wait
    (apply #'plot sources
           :options options
           :terminal terminal

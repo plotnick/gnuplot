@@ -12,7 +12,7 @@ should be straightforward, but has not been attempted.
   (:use "COMMON-LISP" "SB-EXT" "SB-RT")
   (:export "*GNUPLOT*"
            "RUN-GNUPLOT" "WITH-OUTPUT-TO-GNUPLOT" "GNUPLOT"
-           "PLOT" "PLOT-INLINE" "PLOT-HISTOGRAM"))
+           "PLOT" "WRITE-PLOT" "PLOT-INLINE" "PLOT-HISTOGRAM"))
 @e
 (in-package "GNUPLOT")
 @e
@@ -270,15 +270,25 @@ containing only themselves.
 its magic; see \.{inline-images.el}.
 
 @l
-(defun plot-inline (sources &rest args &key options (terminal "png") 
+(defun write-plot (sources &rest args &key (options '())
+                   (plot #'plot)
+                   (terminal "eps")
+                   (output-file (make-pathname :name "plot" :type terminal))
+                   (wait t) &allow-other-keys)
+  (let ((process (apply plot sources
+                        :options options
+                        :terminal terminal
+                        :output-file output-file
+                        args)))
+    (cond (wait (process-wait process) (probe-file output-file))
+          (t process))))
+
+(defun plot-inline (sources &rest args &key (terminal "png")
                     (output-file #P"/tmp/plot.png") &allow-other-keys)
-  (process-wait
-   (apply #'plot sources
-          :options options
-          :terminal terminal
-          :output-file output-file
-          args))
-  (probe-file output-file))
+  (apply #'write-plot sources
+         :terminal terminal
+         :output-file output-file
+         args))
 
 @ Gnuplot can draw histograms, but is clumsy at binning---we're better
 off doing it in Lisp. We support only constant-width bins for now.
@@ -294,13 +304,19 @@ off doing it in Lisp. We support only constant-width bins for now.
   histogram)
 
 (defun plot-histogram (data &rest args &key (options '(:persist)) key ranges ;
-                       title (with :boxes) &allow-other-keys)
+                       title (terminal "x11") output-file
+                       (border 0) (with :boxes) &allow-other-keys)
   (let ((histogram (apply #'histogram data :allow-other-keys t args)))
     (gnuplot options
+      `(:set :terminal ,terminal)
+      `(:set :output ,@(and output-file `(,output-file)))
       `(:set :style :histogram)
       `(:set :style :fill :solid 0.5 :border :lt -1)
       `(:set :key ,(ensure-key key))
       `(:set :title ,@(and title `(,title)))
+      `(:set :border ,border)
+      `(:set :xtics :nomirror)
+      `(:unset :ytics)
       `(plot ,@(maybe-ranges ranges) (,histogram :with ,with)))))
 
 @ We represent histograms as two-dimensional arrays, with a row for each bin.

@@ -140,26 +140,31 @@ Even though this is a function, I usually indent it like it's a macro whose
 
 @ Gnuplot's two primary plotting commands commands, \.{plot} and~\.{splot},
 get special treatment. With the exception of a form beginning with the key
-|:ranges|, for which we offer a bit of extra support---|(:ranges x y)| gets
-translated to \.{"[x] [y]"} and inserted near the beginning of the
-command---each subform, or {\it clause}, is treated as a specification for
-a plot. When all of the clauses have been analyzed, they are spliced
+|:ranges|, for which we offer a bit of extra support---|(:ranges x y)|
+is translated to \.{"[x] [y]"} and inserted near the beginning of the
+command---each subform, or {\it clause}, is treated as a specification
+for a plot. When all of the clauses have been analyzed, they are spliced
 together with commas to form the complete command.
 
 We do not attempt a detailed analysis of the clauses, as that would require
 far too much knowledge of the (fairly intricate) syntax of the plot command.
 What we do offer, though, is support for {\it inline data sources}. The idea
-here is that you have (say) a Lisp sequence full of data which you'd like to
-plot; rather than writing it out to a file and having gnuplot read it back
-in, we can replace the data source in the command specification with the
-special filename \.{'-'}, which tells gnuplot to read the data from its
-standard input. We then return all of the inline data sources along with
-the reconstructed command.
+here is that you have (say) a Lisp sequence full of data which you'd like
+to plot; rather than writing it out to a file and having gnuplot read it
+back in, we replace the data source in the command specification with
+the special filename \.{'-'}, which tells gnuplot to read the data from
+standard input.
 
 @l
+(deftype data-source ()
+  '(or (cons number) (array number)))
+
+(deftype data-source-with-options ()
+  '(cons data-source (cons keyword)))
+
 (defun parse-plot-command (command)
-  (assert (string= (car command) :plot)
-          (command)
+  (assert (string= (car command) :plot) ;
+          (command) ;
           "Invalid plot command ~S." command)
   (let (ranges plots sources)
     (with-gnuplot-syntax
@@ -192,14 +197,15 @@ the reconstructed command.
           #P"foo's data")
   "plot sin(x) with points, cos(x) with lines, 'foo''s data'")
 
-@ The only types of inline data source we currently support are lists and
-non-string arrays. We push them onto the |sources| list and substitute the
-pathname~\.{'-'}.
-
-@<Replace inline...@>=
+@ @<Replace inline data sources...@>=
 (loop for x in clause
       collect (typecase x
-                ((or cons (and array (not string))) (push x sources) #P"-")
+                (data-source-with-options
+                 (push (car x) sources)
+                 `(,#P"-" ,@(cdr x)))
+                (data-source
+                 (push x sources)
+                 #P"-")
                 (t x)))
 
 @t@l
@@ -241,30 +247,36 @@ list of sources with some common options.
 
 @l
 (defun ensure-key (key)
-  (case key ((t) :on) ((nil) :off) (t key)))
+  (case key
+    ((t) :on)
+    ((nil) :off)
+    (t key)))
 
 (defun maybe-ranges (ranges)
   (when ranges `((:ranges ,@(ensure-list ranges)))))
 
-(defun plot (sources &key (options '(:persist)) key (terminal "x11") ranges ;
-             output-file title (with :lines) &allow-other-keys)
+(defun plot (sources &key (options '(:persist)) (terminal "x11") (with :lines)
+             ranges output-file title
+             (key nil key-supplied-p) &allow-other-keys &aux
+             (sources (etypecase sources
+                        ((or data-source data-source-with-options)
+                         (list sources))
+                        (list sources))))
   (gnuplot options
     `(:set :terminal ,terminal)
     `(:set :output ,@(and output-file `(,output-file)))
-    `(:set :key ,(ensure-key key))
+    `(:set :key ,(ensure-key (if key-supplied-p
+                                 key
+                                 (and (some (lambda (source)
+                                              (typecase source
+                                                (data-source-with-options ;
+                                                 (getf (cdr source) :title))))
+                                            sources)
+                                      t))))
     `(:set :title ,@(and title `(,title)))
     `(plot ,@(maybe-ranges ranges)
-           ,@(loop for source in @<Make sources out of |sources|@>
+           ,@(loop for source in sources
                    collect `(,source :with ,with)))))
-
-@ Arrays and lists of numbers are taken as designators for source lists
-containing only themselves.
-
-@<Make sources...@>=
-(cond ((or (arrayp sources) (and (consp sources) (every #'numberp sources)))
-       (list sources))
-      ((consp sources) sources)
-      (t (error "Don't know how to plot ~A." sources)))
 
 @ And here's a related one that relies on a bit of Emacs hackery to perform
 its magic; see \.{inline-images.el}.

@@ -157,7 +157,7 @@ standard input.
 
 @l
 (deftype data-source ()
-  '(or (cons number) (array number)))
+  '(or (and array (not string)) (cons number)))
 
 (deftype data-source-with-options ()
   '(cons data-source (cons keyword)))

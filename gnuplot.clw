@@ -259,7 +259,7 @@ list of sources with some common options.
   (when ranges `((:ranges ,@(ensure-list ranges)))))
 
 (defun plot (sources &key (options '(:persist)) (terminal "x11") (with :lines)
-             ranges output-file title
+             logscale ranges output-file title
              (key nil key-supplied-p) &allow-other-keys &aux
              (sources (etypecase sources
                         ((or data-source data-source-with-options)
@@ -277,6 +277,9 @@ list of sources with some common options.
                                             sources)
                                       t))))
     `(:set :title ,@(and title `(,title)))
+    (if logscale
+        `(:set :logscale ,logscale)
+        '(:unset :logscale))
     `(plot ,@(maybe-ranges ranges)
            ,@(loop for source in sources
                    collect `(,source :with ,with)))))

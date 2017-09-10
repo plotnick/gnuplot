@@ -10,7 +10,7 @@ should be straightforward, but has not been attempted.
 (defpackage "GNUPLOT"
   (:documentation "A simple Lisp interface to gnuplot.")
   (:use "COMMON-LISP" "SB-EXT" "SB-RT")
-  (:export "*GNUPLOT*"
+  (:export "*GNUPLOT-PROGRAM*" "SINGLE-QUOTE"
            "RUN-GNUPLOT" "WITH-OUTPUT-TO-GNUPLOT" "GNUPLOT"
            "PLOT" "WRITE-PLOT" "PLOT-INLINE" "PLOT-HISTOGRAM"))
 @e
@@ -73,18 +73,21 @@ constituents. E.g., using the symbol dispatching we just defined, in a
 that embedded single-quote characters be escaped by doubling them.
 
 @l
-(defun escape (string chars &optional (escape #\\)
-               &aux (chars (ensure-list chars)))
-  (coerce (loop for ch across string
-                when (member ch chars :test #'char=) collect escape
-                collect ch)
-          'string))
+(defun single-quote (string &optional stream)
+  (format stream "'~A'"
+          (coerce (loop for char across string
+                        when (char= char #\') collect #\'
+                        collect char)
+                  'string)))
 
 (set-gnuplot-dispatch 'pathname
   (lambda (stream object)
-    (write-char #\' stream)
-    (write-string (escape (namestring object) #\' #\') stream)
-    (write-char #\' stream)))
+    (single-quote (namestring object) stream)))
+
+@t@l
+(deftest single-quote
+  (single-quote "foo's")
+  "'foo''s'")
 
 @ We'll execute gnuplot using SBCL's |run-program|. We treat symbols
 as designators for the same-named command-line options; keyword symbols

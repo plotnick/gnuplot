@@ -45,6 +45,13 @@ commands, but not to go much further than that.
          (*print-right-margin* 1000))
      ,@body))
 
+@ Floating-point numbers must always printed using an exponent marker of `E'.
+
+@l
+(set-gnuplot-dispatch 'float
+  (lambda (stream object &aux (*read-default-float-format* (type-of object)))
+    (format stream "~F" object)))
+
 @ Strings designate themselves in commands.
 
 @l

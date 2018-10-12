@@ -271,7 +271,8 @@ list of sources with some common options.
              (sources (etypecase sources
                         ((or data-source data-source-with-options)
                          (list sources))
-                        (list sources))))
+                        (list sources)
+                        (atom (list sources)))))
   (gnuplot options
     `(:set :terminal ,terminal)
     `(:set :output ,@(and output-file `(,output-file)))
